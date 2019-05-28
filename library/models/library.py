@@ -7,6 +7,7 @@ from odoo.exceptions import ValidationError, Warning as UserError
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT,\
     DEFAULT_SERVER_DATETIME_FORMAT
 from dateutil.relativedelta import relativedelta as rd
+import dateutil.parser
 
 
 class LibraryRack(models.Model):
@@ -359,6 +360,9 @@ class LibraryBookIssue(models.Model):
 
     @api.constrains('card_id', 'name')
     def check_book_issue(self):
+        if self.card_id.start_date > self.date_issue.date() or self.card_id.end_date < self.date_issue.date():
+            raise ValidationError(_('''The Membership of library card is
+            over!'''))
         book_issue = self.search([('name', '=', self.name.id),
                                   ('id', 'not in', self.ids),
                                   ('card_id', '=', self.card_id.id),
@@ -437,16 +441,9 @@ class LibraryBookIssue(models.Model):
         @return : True
         '''
 
-        curr_dt = datetime.now()
-        new_date = datetime.strftime(curr_dt,
-                                     DEFAULT_SERVER_DATE_FORMAT)
-        if (self.card_id.end_date < new_date and
-                self.card_id.end_date > new_date):
-                raise ValidationError(_('''The Membership of library
-                card is over!'''))
-#        if self.issue_code == 'New':
-        code_issue = self.env['ir.sequence'
-                              ].next_by_code('library.book.issue'
+        if self.issue_code == 'New':
+            code_issue = self.env['ir.sequence'
+                                  ].next_by_code('library.book.issue'
                                              ) or _('New')
         for rec in self:
             if (rec.name and rec.name.availability == 'notavailable' and
@@ -725,14 +722,7 @@ class LibraryBookRequest(models.Model):
     def confirm_book_request(self):
         '''Method to confirm book request'''
         book_issue_obj = self.env['library.book.issue']
-        curr_dt = datetime.now()
-        new_date = datetime.strftime(curr_dt,
-                                     DEFAULT_SERVER_DATETIME_FORMAT)
         vals = {}
-        if (new_date >= self.card_id.start_date and
-                new_date <= self.card_id.end_date):
-                raise ValidationError(_('''The Membership of library card is
-                over!'''))
         if self.type == 'existing':
             vals.update({'card_id': self.card_id.id,
                          'name': self.name.id})
