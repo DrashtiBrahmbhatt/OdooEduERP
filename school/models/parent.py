@@ -18,6 +18,7 @@ class SchoolParent(models.Model):
 
     _name = 'school.parent'
     _description = 'Parent Information'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     partner_id = fields.Many2one('res.partner', 'User ID', ondelete="cascade",
                                  delegate=True, required=True,
@@ -57,20 +58,24 @@ class SchoolParent(models.Model):
 
     @api.model
     def create(self, vals):
-        """Inherited create method to assign values in
-        the users record to maintain the delegation"""
-        parent_rec = super(SchoolParent, self).create(vals)
+        parent_id = super(SchoolParent, self).create(vals)
         parent_grp_id = self.env.ref('school.group_school_parent')
         emp_grp = self.env.ref('base.group_user')
         parent_group_ids = [emp_grp.id, parent_grp_id.id]
-        user_vals = {'name': parent_rec.name,
-                     'login': parent_rec.email,
-                     'email': parent_rec.email,
-                     'partner_id': parent_rec.partner_id.id,
+     
+        if vals.get('parent_create_mng'):
+            return parent_id
+        user_vals = {'name': parent_id.name,
+                     'login': parent_id.email,
+                     'email': parent_id.email,
+                     'password':parent_id.email,
+                     'partner_id': parent_id.partner_id.id,
                      'groups_id': [(6, 0, parent_group_ids)]
                      }
-        self.env['res.users'].create(user_vals)
-        return parent_rec
+        self.env['res.users'].with_context({'no_reset_password': True}).create(user_vals)
+        return parent_id
+
+
 
     @api.onchange('state_id')
     def onchange_state(self):

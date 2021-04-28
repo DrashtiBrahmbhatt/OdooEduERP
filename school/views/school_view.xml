@@ -219,7 +219,7 @@
                                 <field name="syllabus_ids" nolabel="1" colspan="4" context="{'default_standard_id':standard_id}">
                                     <tree editable="top" string="Syllabs">
                                         <field name="standard_id" invisible="1"/>
-                                        <field name="subject_id" required="1"
+                                        <field name="subject_id" required="1" domain="[('standard_ids','in',parent.standard_id)]" 
                                                         widget="selection"/>
                                         <field name="syllabus_doc" required="1"/>
                                     </tree>

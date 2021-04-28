@@ -16,16 +16,16 @@ class MailTemplate(models.Model):
             ret['body_html'] = self._context['body_text']
             ret['subject'] = self._context['subject']
             ret['email_to'] = self._context['email_to']
-        return ret
-#
-#
+            return ret
+
+
 class SendMail(models.TransientModel):
     """Defining TransientModel to send mail."""
 
     _name = "send.email"
     _description = "Send Mail"
 
-    note = fields.Text('Text')
+    note = fields.Text('Text' ,required=True)
 
     def send_email(self):
         '''Method to send email.'''

@@ -240,9 +240,9 @@ class StudentStudent(models.Model):
         res = super(StudentStudent, self).create(vals)
         teacher = self.env['school.teacher']
         for data in res.parent_id:
-            teacher_rec = teacher.search([('stu_parent_id', '=', data.id)])
-            for record in teacher_rec:
-                record.write({'student_id': [(4, res.id, None)]})
+          teacher_rec = teacher.search([('stu_parent_id', '=', data.id)])
+          for record in teacher_rec:
+            record.write({'student_id': [(4, res.id, None)]})
         # Assign group to student based on condition
         emp_grp = self.env.ref('base.group_user')
         if res.state == 'draft':
@@ -303,8 +303,15 @@ class StudentStudent(models.Model):
         self.state = 'draft'
 
     def set_terminate(self):
-        '''Set the state to terminate'''
-        self.state = 'terminate'
+        '''Method to change state to terminate'''
+        student_user = self.env['res.users']
+        for rec in self:
+            rec.state = 'terminate'
+            rec.standard_id._compute_total_student()
+            user = student_user.search([('id', '=', rec.user_id.id)])
+            rec.active = False
+            if user:
+                user.active = False
 
     def cancel_admission(self):
         '''Set the state to cancel.'''

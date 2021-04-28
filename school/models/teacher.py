@@ -1,6 +1,7 @@
 # See LICENSE file for full copyright and licensing details.
 
-from odoo import api, fields, models
+from odoo import api, fields, models , _
+from odoo.exceptions import ValidationError
 
 
 class SchoolTeacher(models.Model):
@@ -71,59 +72,56 @@ class SchoolTeacher(models.Model):
                      'email': teacher_id.work_email,
                      }
         ctx_vals = {'teacher_create': True,
-                    'school_id': teacher_id.school_id.company_id.id}
+                    'school_id': teacher_id.school_id.company_id.id,
+                    'no_reset_password': True}
         user_rec = user_obj.with_context(ctx_vals).create(user_vals)
         teacher_id.employee_id.write({'user_id': user_rec.id})
-#        if vals.get('is_parent'):
-#            self.parent_crt(teacher_id)
+        # if vals.get('is_parent'):
+        #     self.parent_crt(teacher_id)
         return teacher_id
 
-# Removing this code because of issue faced due to email id of the
-# user is same for parent and Teacher, and system will not allow it.
-# now user shuld create Parent record first and then select it in
-# related parent in Teacher Profile. - Anu Patel (24/03/2021)
-#    def parent_crt(self, manager_id):
-#        """Method to create parent record based on parent field"""
-#        stu_parent = []
-#        if manager_id.stu_parent_id:
-#            stu_parent = manager_id.stu_parent_id
-#        if not stu_parent:
-#            emp_user = manager_id.employee_id
-#            students = [stu.id for stu in manager_id.student_id]
-#            parent_vals = {'name': manager_id.name,
-#                           'email': emp_user.work_email,
-#                           'user_ids': [(6, 0, [emp_user.user_id.id])],
-#                           'partner_id': emp_user.user_id.partner_id.id,
-#                           'student_id': [(6, 0, students)]}
-#            stu_parent = self.env['school.parent'].with_context().create(parent_vals)
-#            manager_id.write({'stu_parent_id': stu_parent.id})
-#        user = stu_parent.user_ids
-#        user_rec = user[0]
-#        parent_grp_id = self.env.ref('school.group_school_parent')
-#        groups = parent_grp_id
-#        if user_rec.groups_id:
-#            groups = user_rec.groups_id
-#            groups += parent_grp_id
-#        group_ids = [group.id for group in groups]
-#        user_rec.write({'groups_id': [(6, 0, group_ids)]})
+    # def parent_crt(self, manager_id):
+    #     """Method to create parent record based on parent field"""
+    #     stu_parent = []
+    #     if manager_id.stu_parent_id:
+    #         stu_parent = manager_id.stu_parent_id
+    #     if not stu_parent:
+    #         emp_user = manager_id.employee_id
+    #         students = [stu.id for stu in manager_id.student_id]
+    #         parent_vals = {'name': manager_id.name,
+    #                        'email': emp_user.work_email,
+    #                        'user_ids': [(6, 0, [emp_user.user_id.id])],
+    #                        'partner_id': emp_user.user_id.partner_id.id,
+    #                        'student_id': [(6, 0, students)]}
+    #         stu_parent = self.env['school.parent'].with_context(parent_create_mng='parent').create(parent_vals)
+    #         manager_id.write({'stu_parent_id': stu_parent.id})
+    #     user = stu_parent.user_ids
+    #     user_rec = user[0]
+    #     parent_grp_id = self.env.ref('school.group_school_parent')
+    #     groups = parent_grp_id
+    #     if user_rec.groups_id:
+    #         groups = user_rec.groups_id
+    #         groups += parent_grp_id
+    #     group_ids = [group.id for group in groups]
+    #     user_rec.write({'groups_id': [(6, 0, group_ids)]})
 
     def write(self, vals):
         """Inherited write method to assign groups based on parent field"""
-        if vals.get('is_parent'):
-            self.parent_crt(self)
+        # if vals.get('is_parent'):
+        #     self.parent_crt(self)
         if vals.get('student_id'):
             self.stu_parent_id.write({'student_id': vals.get('student_id')})
-        if not vals.get('is_parent'):
-            user_rec = self.employee_id.user_id
-            ir_obj = self.env['ir.model.data']
-            parent_grp_id = ir_obj.get_object('school', 'group_school_parent')
-            groups = parent_grp_id
-            if user_rec.groups_id:
-                groups = user_rec.groups_id
-                groups -= parent_grp_id
-            group_ids = [group.id for group in groups]
-            user_rec.write({'groups_id': [(6, 0, group_ids)]})
-        return super(SchoolTeacher, self).write(vals)
+            if not vals.get('is_parent'):
+                user_rec = self.employee_id.user_id
+                ir_obj = self.env['ir.model.data']
+                parent_grp_id = ir_obj.get_object('school', 'group_school_parent')
+                groups = parent_grp_id
+                if user_rec.groups_id:
+                    groups = user_rec.groups_id
+                    groups -= parent_grp_id
+                group_ids = [group.id for group in groups]
+                user_rec.write({'groups_id': [(6, 0, group_ids)]})
+            return super(SchoolTeacher, self).write(vals)
 
     @api.onchange('address_id')
     def onchange_address_id(self):
@@ -160,3 +158,13 @@ class SchoolTeacher(models.Model):
         self.work_phone = phone or False
         self.phone_numbers = phone or False
         phone = self.school_id.company_id.partner_id.phone or False
+
+
+
+class Employee(models.Model):
+    _inherit = 'hr.employee'
+
+    @api.constrains('work_email')
+    def check_work_email(self):
+        if self.env['hr.employee'].search_count([('work_email','=',self.work_email)]) > 1:
+            raise ValidationError(_('''Error! work email must be unique'''))
